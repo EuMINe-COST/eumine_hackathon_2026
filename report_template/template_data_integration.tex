@@ -1,0 +1,138 @@
+%% template_data_integration.tex
+%% EuMINe DataBridge Hackathon 2026 — Data Integration Report Template
+%%
+%% Fill in every TODO section.
+%% Compile with: pdflatex template_data_integration.tex
+%%               (run twice for cross-references)
+
+\documentclass[10pt, a4paper]{article}
+\usepackage{eumine_hackathon}
+
+%% ── Title block ────────────────────────────────────────────────────────────
+\title{%
+  \textbf{Data Integration Report}\\[4pt]
+  {\large EuMINe DataBridge Hackathon \hackathonyear}
+}
+\author{
+  TODO: Team Name \\
+  \small TODO: Institution(s) \\
+  \small TODO: Contact email
+}
+\date{TODO: Date submitted}
+
+%% ───────────────────────────────────────────────────────────────────────────
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+% ── Abstract ──────────────────────────────────────────────────────────────
+\begin{abstract}
+TODO: One paragraph summarising the data sources used, how they were
+harmonised, and the key characteristics of the final training dataset.
+\end{abstract}
+
+\tableofcontents
+\vspace{1em}
+
+% ── 1. Data Sources ────────────────────────────────────────────────────────
+\section{Data Sources Used}
+
+\begin{table}[h!]
+\centering
+\caption{Summary of data sources included in the training dataset.}
+\label{tab:sources}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Source & Version / date & Entries used & Properties & DFT functional \\
+\midrule
+Materials Project  & TODO & TODO & \(E_f\), \(E_g\) & PBE (GGA) \\
+JARVIS-DFT dft\_3d & TODO & TODO & \(E_f\), \(E_g\) & OptB88vdW \\
+TODO (other)       & TODO & TODO & TODO             & TODO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Materials Project}
+TODO: Describe what fields were downloaded, filters applied (e.g.\
+\texttt{has\_props=["thermo","electronic\_structure"]}), and any known
+caveats (band gaps from HSE vs.\ GGA, deprecated entries, etc.).
+
+\subsection{JARVIS-DFT}
+TODO: Describe the \texttt{dft\_3d} dataset version used, key fields
+(\texttt{formation\_energy\_peratom}, \texttt{optb88vdw\_bandgap}), and
+notable differences from MP (functional, pseudopotentials, k-point density).
+
+\subsection{Additional Sources (if any)}
+TODO: Describe any extra databases used.
+
+% ── 2. Harmonisation Strategy ─────────────────────────────────────────────
+\section{Harmonisation Strategy}
+
+\subsection{Structure Matching}
+TODO: Explain matching logic (e.g.\ reduced formula + space group number, plus
+\(\pm 2\) site tolerance). Report number of raw/filtered/final matches.
+
+\subsection{Handling Duplicates}
+TODO: Describe deduplication (e.g.\ keep lowest-energy polymorph per
+formula+spacegroup combination, or random selection with fixed seed).
+
+\subsection{Label Assignment}
+TODO: Explain which source is used as the primary label for training (e.g.\
+MP value primary, JARVIS as fallback if MP value is missing). Justify the
+choice.
+
+\subsection{Methodological Bias Correction (optional)}
+TODO: If you applied any bias correction (e.g.\ a linear offset between MP
+and JARVIS formation energies), describe the method and its effect on
+property distributions.
+
+% ── 3. Data Card ──────────────────────────────────────────────────────────
+\section{Data Card}
+
+\begin{table}[h!]
+\centering
+\caption{Dataset statistics (training split).}
+\label{tab:datacard}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Property & Value \\
+\midrule
+Total entries (train / val / test) & TODO / TODO / TODO \\
+Unique chemical systems            & TODO \\
+Space group count                  & TODO \\
+Median \(|\Delta E_f|\) MP\,--\,JARVIS & TODO eV/atom \\
+Median \(|\Delta E_g|\) MP\,--\,JARVIS & TODO eV \\
+Splitting strategy                 & TODO (stratified / random) \\
+Stratification variable            & TODO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+TODO: You may also include histograms of formation energy and band gap
+(training set) generated from \texttt{bridge\_dataset\_train.csv}.
+
+% ── 4. Limitations and Failure Cases ─────────────────────────────────────
+\section{Limitations and Failure Cases}
+
+\begin{itemize}
+  \item TODO: Compositional coverage gaps (e.g.\ rare-earth elements
+    under-represented because JARVIS coverage is low).
+  \item TODO: Known issues with band gap labels (semiconductors with
+    mis-classified gap due to PBE underestimation).
+  \item TODO: Structural features that may cause featuriser failures
+    (e.g.\ disordered structures, very large supercells).
+  \item TODO: Any materials excluded and why.
+\end{itemize}
+
+% ── References ────────────────────────────────────────────────────────────
+\section*{References}
+
+\begin{enumerate}
+  \item Jain et al., \textit{APL Mater.} \textbf{1}, 011002 (2013) —
+    Materials Project.
+  \item Choudhary et al., \textit{npj Comput. Mater.} \textbf{6}, 173 (2020)
+    — JARVIS-DFT.
+  \item TODO: Add any additional references.
+\end{enumerate}
+
+\end{document}

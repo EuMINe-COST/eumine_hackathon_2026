@@ -1,0 +1,30 @@
+name: Validate MatFed API Template
+
+on:
+  push:
+    paths:
+      - 'matfed-api-template/**'
+  pull_request:
+    paths:
+      - 'matfed-api-template/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pymatgen jsonschema pytest
+          pip install -r matfed-api-template/requirements.txt
+
+      - name: Run compliance tests
+        run: |
+          cd matfed-api-template
+          pytest tests/test_interface.py -v

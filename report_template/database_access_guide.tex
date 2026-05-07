@@ -1,0 +1,571 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{eumine_hackathon}
+
+%% -- Document metadata ------------------------------------------------------
+\hypersetup{
+  pdftitle={Database Access Guide --- EuMINe DataBridge Hackathon 2026},
+  pdfauthor={EuMINe Hackathon Organizing Committee},
+  pdfsubject={How to access Materials Project, JARVIS-DFT, AFLOW, NOMAD, OQMD},
+}
+
+\title{%
+  {\large \textcolor{eumine_blue}{\textsc{EuMINe} DataBridge Hackathon 2026}}\\[6pt]
+  \textbf{Database Access Guide}\\[4pt]
+  {\normalsize Materials Project \textbullet\ JARVIS-DFT \textbullet\ AFLOW
+   \textbullet\ NOMAD \textbullet\ OQMD}
+}
+\author{EuMINe Hackathon Organizing Committee}
+\date{May 2026 --- v1.0}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+\tableofcontents
+\vspace{1em}
+
+\noindent
+This guide explains how to download and query each of the five materials databases
+supported in the EuMINe DataBridge Hackathon.
+You are required to use \textbf{at least two} of them in your submission.
+All databases are publicly accessible free of charge; some require a (free) account
+for API access.
+
+\medskip
+\noindent\textbf{Python environment required:}
+\begin{lstlisting}[language=bash]
+conda create -n eumine-hackathon python=3.11
+conda activate eumine-hackathon
+pip install mp-api pymatgen jarvis-tools requests pandas numpy
+\end{lstlisting}
+
+% ----------------------------------------------------------------------------
+\section{Materials Project}
+
+\subsection{Overview}
+The Materials Project (\url{https://materialsproject.org}) provides DFT-computed
+properties (PBE functional) for $\sim$150\,000 inorganic materials, including
+formation energies, band gaps, elastic constants, and crystal structures.
+
+\subsection{Getting an API key}
+\begin{enumerate}
+  \item Go to \url{https://materialsproject.org} and click \textbf{Sign in}.
+  \item Create a free account (Google or email).
+  \item Navigate to \textbf{Dashboard} $\to$ \textbf{API key}.
+  \item Copy your key (a 32-character string).
+  \item Store it as an environment variable --- \emph{never} hard-code it in scripts:
+\begin{lstlisting}[language=bash]
+export MP_API_KEY="your_key_here"
+# or add to ~/.bashrc / ~/.zshrc
+\end{lstlisting}
+\end{enumerate}
+
+\subsection{Installation}
+\begin{lstlisting}[language=bash]
+pip install mp-api pymatgen
+\end{lstlisting}
+
+\subsection{Basic query examples}
+
+\paragraph{Query formation energy and band gap (no structures):}
+\begin{lstlisting}[language=Python]
+import os
+from mp_api.client import MPRester
+
+with MPRester(os.environ["MP_API_KEY"]) as mpr:
+    docs = mpr.materials.summary.search(
+        has_props=["thermo", "electronic_structure"],
+        fields=["material_id", "formula_pretty",
+                "formation_energy_per_atom", "band_gap",
+                "nsites", "nelements", "symmetry"],
+        chunk_size=1000,
+        num_chunks=None,
+    )
+    for doc in docs:
+        if doc.formation_energy_per_atom is None or doc.band_gap is None:
+            continue
+        print(doc.material_id, doc.formation_energy_per_atom, doc.band_gap)
+\end{lstlisting}
+
+\paragraph{Fetch a single structure by material ID:}
+\begin{lstlisting}[language=Python]
+from mp_api.client import MPRester
+import os
+
+with MPRester(os.environ["MP_API_KEY"]) as mpr:
+    structure = mpr.get_structure_by_material_id("mp-22862")  # NaCl
+print(structure)   # pymatgen Structure object
+structure.to(fmt="cif", filename="NaCl.cif")
+\end{lstlisting}
+
+\paragraph{Batch fetch structures for a list of IDs:}
+\begin{lstlisting}[language=Python]
+from mp_api.client import MPRester
+import os
+
+ids = ["mp-22862", "mp-13", "mp-2657"]   # NaCl, Fe, TiO2
+
+with MPRester(os.environ["MP_API_KEY"]) as mpr:
+    structures = mpr.get_structures(ids)
+
+for mid, struct in zip(ids, structures):
+    struct.to(fmt="cif", filename=f"{mid}.cif")
+\end{lstlisting}
+
+\subsection{Rate limits and quotas}
+\begin{itemize}
+  \item Free tier: \textbf{30 requests/minute}, no daily cap.
+  \item Use \verb|chunk_size=1000| and \verb|num_chunks=None| to stream large queries
+        without hitting per-request limits.
+  \item Avoid fetching \verb|structure| in bulk summary queries --- it multiplies
+        bandwidth by 100$\times$. Fetch structures separately for only the materials
+        you need.
+\end{itemize}
+
+% ----------------------------------------------------------------------------
+\section{JARVIS-DFT}
+
+\subsection{Overview}
+JARVIS-DFT (\url{https://jarvis.nist.gov}) provides DFT-computed (OptB88vdW
+functional) properties for $\sim$75\,000 materials with strong coverage of
+2D and van-der-Waals materials.
+Data is distributed as bulk JSON downloads via Figshare
+--- no API key required.
+
+\subsection{Installation}
+\begin{lstlisting}[language=bash]
+pip install jarvis-tools
+\end{lstlisting}
+
+\subsection{Bulk download (recommended)}
+\begin{lstlisting}[language=Python]
+from jarvis.db.figshare import data as jdata
+
+# Downloads ~400 MB once; cached in ~/.jarvis/ for all subsequent calls
+dft_3d = jdata("dft_3d")
+print(f"Total entries: {len(dft_3d)}")   # ~75 000
+
+for entry in dft_3d:
+    jid      = entry.get("jid", "")
+    formula  = entry.get("formula", "")
+    ef       = entry.get("formation_energy_peratom")
+    bg       = entry.get("optb88vdw_bandgap")
+    natoms   = entry.get("natoms")
+    spg      = entry.get("spg_number") or entry.get("spacegroup_number")
+    print(jid, formula, ef, bg)
+\end{lstlisting}
+
+\subsection{Available datasets}
+Other datasets accessible via the same interface:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Dataset name & Description \\
+\midrule
+\texttt{dft\_3d}   & 3D bulk materials (main dataset) \\
+\texttt{dft\_2d}   & 2D monolayers \\
+\texttt{cfid\_3d}  & Classical force-field inspired descriptors \\
+\texttt{jff}       & JARVIS force-field data \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Accessing structures}
+JARVIS entries include atomic positions as a nested dictionary compatible with
+\verb|jarvis.core.atoms.Atoms|:
+\begin{lstlisting}[language=Python]
+from jarvis.core.atoms import Atoms
+from jarvis.io.vasp.inputs import Poscar
+
+entry = dft_3d[0]
+atoms = Atoms.from_dict(entry["atoms"])
+Poscar(atoms).write_file("structure.vasp")   # write as POSCAR
+\end{lstlisting}
+
+\paragraph{Convert to pymatgen Structure:}
+\begin{lstlisting}[language=Python]
+from pymatgen.io.vasp import Poscar as pmgPoscar
+
+struct = pmgPoscar.from_file("structure.vasp").structure
+struct.to(fmt="cif", filename="structure.cif")
+\end{lstlisting}
+
+% ----------------------------------------------------------------------------
+\section{AFLOW}
+
+\subsection{Overview}
+AFLOW (\url{https://aflow.org}) is one of the largest repositories of
+high-throughput DFT calculations, with $\sim$3.5 million entries across
+multiple DFT flavors. Access is via a REST API --- no account required.
+
+\subsection{REST API base URL}
+\begin{center}
+\url{http://aflow.org/API/aflowlib.json?}
+\end{center}
+
+\subsection{Query syntax}
+Parameters are appended as \texttt{key=value} pairs separated by \texttt{\&}.
+
+\paragraph{Retrieve entries with both formation energy and band gap:}
+\begin{lstlisting}[language=bash]
+curl "http://aflow.org/API/aflowlib.json?catalog=icsd&paging=1&\
+Egap(*),enthalpy_formation_atom(*),compound(*),auid(*)&format=json" \
+  | python -m json.tool | head -80
+\end{lstlisting}
+
+\paragraph{Python --- paginated download:}
+\begin{lstlisting}[language=Python]
+import requests, json, time
+
+BASE = "http://aflow.org/API/aflowlib.json"
+FIELDS = "auid,compound,enthalpy_formation_atom,Egap,spacegroup_relax"
+PAGE_SIZE = 200
+
+results = []
+page = 1
+while True:
+    url = (f"{BASE}?catalog=icsd&paging={page}&"
+           f"{FIELDS.replace(',', '(*),') + '(*)' }&format=json")
+    r = requests.get(url, timeout=60)
+    if r.status_code != 200 or not r.text.strip():
+        break
+    data = r.json()
+    if not data:
+        break
+    results.extend(data)
+    page += 1
+    time.sleep(0.5)   # be polite --- 2 req/s is safe
+
+print(f"Retrieved {len(results)} AFLOW entries")
+\end{lstlisting}
+
+\subsection{Key field names}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+AFLOW field & Property & Unit \\
+\midrule
+\texttt{enthalpy\_formation\_atom} & Formation energy per atom & eV/atom \\
+\texttt{Egap}                      & Band gap (GGA)            & eV \\
+\texttt{Egap\_type}                & Gap type (direct/indirect) & --- \\
+\texttt{compound}                  & Chemical formula           & --- \\
+\texttt{spacegroup\_relax}         & Space group number (relaxed) & --- \\
+\texttt{natoms}                    & Number of atoms in cell    & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{CIF download}
+\begin{lstlisting}[language=Python]
+import requests
+
+auid = "aflow:some_auid_string"
+# Replace : with / in AUID to build the file path
+path = auid.replace("aflow:", "").replace(":", "/")
+url  = f"http://aflow.org/{path}?files=CONTCAR.relax.vasp"
+r = requests.get(url, timeout=30)
+with open("structure.vasp", "wb") as f:
+    f.write(r.content)
+\end{lstlisting}
+
+\subsection{Rate limits}
+AFLOW has no documented rate limit but imposes soft throttling.
+Keep requests below \textbf{2/second}; use \verb|time.sleep(0.5)| between calls.
+
+% ----------------------------------------------------------------------------
+\section{NOMAD}
+
+\subsection{Overview}
+NOMAD (\url{https://nomad-lab.eu}) aggregates DFT and experimental data from many
+codes and groups worldwide, with rich metadata and a powerful REST API.
+No account required for read access; a (free) NOMAD account enables uploads.
+
+\subsection{REST API base URL}
+\begin{center}
+\url{https://nomad-lab.eu/prod/v1/api/v1/}
+\end{center}
+
+\paragraph{OpenAPI documentation:}
+\url{https://nomad-lab.eu/prod/v1/api/v1/extensions/docs}
+
+\subsection{Query for formation energy (Python)}
+\begin{lstlisting}[language=Python]
+import requests, json
+
+BASE = "https://nomad-lab.eu/prod/v1/api/v1"
+
+query = {
+    "query": {
+        "and": [
+            {"results.material.structural_type": "bulk"},
+            {"results.properties.electronic.band_structure_electronic:exists": True},
+        ]
+    },
+    "required": {
+        "results": {
+            "material": {"chemical_formula_reduced": "*",
+                         "symmetry": {"space_group_number": "*"}},
+            "properties": {
+                "thermodynamic": {"formation_energy": "*"},
+                "electronic":    {"band_gap": "*"},
+            }
+        }
+    },
+    "pagination": {"page_size": 100}
+}
+
+r = requests.post(f"{BASE}/entries/query", json=query, timeout=60)
+data = r.json()
+
+for entry in data.get("data", []):
+    mat  = entry["results"]["material"]
+    prop = entry["results"]["properties"]
+    ef   = prop.get("thermodynamic", {}).get("formation_energy")
+    bg   = prop.get("electronic", {}).get("band_gap")
+    formula = mat.get("chemical_formula_reduced")
+    spg     = mat.get("symmetry", {}).get("space_group_number")
+    print(formula, spg, ef, bg)
+\end{lstlisting}
+
+\subsection{Pagination}
+NOMAD uses cursor-based pagination. To iterate all pages:
+\begin{lstlisting}[language=Python]
+all_entries = []
+query["pagination"] = {"page_size": 100}
+next_url = f"{BASE}/entries/query"
+
+while next_url:
+    r = requests.post(next_url, json=query, timeout=60)
+    data = r.json()
+    all_entries.extend(data.get("data", []))
+    next_page = data.get("pagination", {}).get("next_page_after_value")
+    if next_page:
+        query["pagination"]["page_after_value"] = next_page
+    else:
+        break
+\end{lstlisting}
+
+\subsection{Key field names}
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+NOMAD path & Property \\
+\midrule
+\texttt{results.properties.thermodynamic.formation\_energy} & Formation energy (eV/atom) \\
+\texttt{results.properties.electronic.band\_gap}            & Band gap (eV) \\
+\texttt{results.material.chemical\_formula\_reduced}        & Reduced formula \\
+\texttt{results.material.symmetry.space\_group\_number}     & Space group \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Rate limits}
+NOMAD enforces \textbf{10 req/s} for anonymous users; use \verb|page_size=100| to
+minimise the number of requests.
+
+% ----------------------------------------------------------------------------
+\section{OQMD}
+
+\subsection{Overview}
+The Open Quantum Materials Database (\url{https://oqmd.org}) contains $\sim$1 million
+DFT entries computed with VASP/PBE.
+Access is via a public REST API --- no account required.
+
+\subsection{REST API base URL}
+\begin{center}
+\url{http://oqmd.org/oqmdapi/formationenergy?}
+\end{center}
+
+\subsection{Query examples}
+
+\paragraph{Filter by element and request key properties:}
+\begin{lstlisting}[language=bash]
+curl "http://oqmd.org/oqmdapi/formationenergy?\
+filter=element_set=(Ti,O)&\
+fields=name,delta_e,band_gap,spacegroup,natoms&\
+limit=50&offset=0&format=json"
+\end{lstlisting}
+
+\paragraph{Python --- paginated download:}
+\begin{lstlisting}[language=Python]
+import requests, time
+
+BASE   = "http://oqmd.org/oqmdapi/formationenergy"
+PARAMS = {
+    "fields":  "name,delta_e,band_gap,spacegroup,natoms,unit_cell",
+    "limit":   100,
+    "offset":  0,
+    "format":  "json",
+}
+
+results = []
+while True:
+    r = requests.get(BASE, params=PARAMS, timeout=60)
+    data = r.json()
+    batch = data.get("data", [])
+    if not batch:
+        break
+    results.extend(batch)
+    PARAMS["offset"] += PARAMS["limit"]
+    time.sleep(0.5)
+    if PARAMS["offset"] > data.get("meta", {}).get("count", 0):
+        break
+
+print(f"Retrieved {len(results)} OQMD entries")
+\end{lstlisting}
+
+\subsection{Key field names}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+OQMD field     & Property             & Unit \\
+\midrule
+\texttt{name}      & Chemical formula         & --- \\
+\texttt{delta\_e}  & Formation enthalpy/atom  & eV/atom \\
+\texttt{band\_gap} & Band gap                 & eV \\
+\texttt{spacegroup}& Space group symbol       & --- \\
+\texttt{natoms}    & Atoms in cell            & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Rate limits}
+OQMD has no documented rate limit. Keep requests below \textbf{1/second} to avoid
+triggering the server's soft throttle.
+
+% ----------------------------------------------------------------------------
+\section{Common Pitfalls and Best Practices}
+
+\subsection{API rate limits}
+\begin{itemize}
+  \item \textbf{Materials Project:} 30 req/min --- use the official client
+        (\texttt{mp-api}) which handles chunking automatically.
+  \item \textbf{JARVIS:} no API; single bulk download. Run it once, cache the result.
+  \item \textbf{AFLOW:} no documented limit; stay at $\leq$2 req/s.
+  \item \textbf{NOMAD:} 10 req/s; always use large \texttt{page\_size}.
+  \item \textbf{OQMD:} polite limit; 1 req/s recommended.
+\end{itemize}
+
+\subsection{Pagination}
+All REST APIs return a limited number of results per call.
+Always implement pagination and check for empty responses.
+A common pattern:
+\begin{lstlisting}[language=Python]
+offset = 0
+while True:
+    batch = fetch_page(offset=offset, limit=PAGE_SIZE)
+    if not batch:
+        break
+    process(batch)
+    offset += PAGE_SIZE
+\end{lstlisting}
+
+\subsection{Property name differences}
+The same quantity has different field names across databases.
+Use the following mapping when harmonising data:
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Database & Formation energy field & Band gap field & Unit \\
+\midrule
+Materials Project & \texttt{formation\_energy\_per\_atom} & \texttt{band\_gap} & eV, eV \\
+JARVIS-DFT        & \texttt{formation\_energy\_peratom}  & \texttt{optb88vdw\_bandgap} & eV, eV \\
+AFLOW             & \texttt{enthalpy\_formation\_atom}   & \texttt{Egap} & eV, eV \\
+NOMAD             & \texttt{formation\_energy}           & \texttt{band\_gap} & eV/atom, eV \\
+OQMD              & \texttt{delta\_e}                    & \texttt{band\_gap} & eV/atom, eV \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\textbf{Note:} Always check units per database.
+NOMAD's \texttt{formation\_energy} is sometimes in eV for the whole cell, not per atom
+--- verify by dividing by \texttt{natoms} and cross-checking with a known compound.
+
+\subsection{Missing and invalid values}
+Databases use different sentinels for missing data:
+\begin{lstlisting}[language=Python]
+MISSING = {None, "na", "Na", "NA", "", "None", "N/A", float("nan")}
+
+def is_valid(value):
+    if value in MISSING:
+        return False
+    try:
+        return not (float(value) != float(value))   # NaN check
+    except (TypeError, ValueError):
+        return False
+\end{lstlisting}
+
+\subsection{Functional and methodological biases}
+The same compound can yield very different values in different databases because the
+DFT functional, pseudopotentials, and convergence settings differ:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Database & Primary functional \\
+\midrule
+Materials Project & PBE (GGA) \\
+JARVIS-DFT        & OptB88vdW (vdW-corrected GGA) \\
+AFLOW             & PBE (GGA), LDA for some \\
+NOMAD             & Mixed (source-dependent) \\
+OQMD              & PBE (GGA) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Band gaps are \textbf{systematically underestimated} by standard GGA.
+JARVIS reports slightly higher band gaps than MP for the same compound due to the
+OptB88vdW correction, especially for weakly bonded and layered systems.
+Document which sources you used and how you resolved discrepancies in your
+\textit{Data Integration Report}.
+
+\subsection{Formula and structure matching}
+When linking entries across databases:
+\begin{itemize}
+  \item Normalize all formulas to \textbf{reduced composition}
+        (e.g., \texttt{Na2Cl2} $\to$ \texttt{NaCl}).
+        Use \texttt{pymatgen.core.Composition(formula).reduced\_formula}.
+  \item Match on \textbf{reduced formula + space group number} as a primary key.
+  \item Apply an \textbf{nsites tolerance of $\pm2$} to reconcile slight
+        supercell differences.
+  \item Deduplicate after merging (keep one MP entry and one JARVIS entry per
+        bridge material to avoid data leakage).
+\end{itemize}
+
+\subsection{Storing large datasets efficiently}
+\begin{itemize}
+  \item Use \textbf{JSONL} (one JSON object per line) for streaming writes ---
+        safe against RAM overflow and easy to append to.
+  \item Avoid loading all 150,000 MP entries into a Python list at once.
+  \item For the hackathon, the provided Bridge Dataset ($\sim$1,000 entries) is
+        small enough to hold in memory as a Pandas DataFrame.
+\end{itemize}
+
+% ----------------------------------------------------------------------------
+\section*{Summary: Quick Reference}
+\addcontentsline{toc}{section}{Summary: Quick Reference}
+
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+Database & Size & API type & Auth & Install \\
+\midrule
+Materials Project & $\sim$150k & Python client & API key (free) & \texttt{pip install mp-api} \\
+JARVIS-DFT        & $\sim$75k  & Bulk download & None           & \texttt{pip install jarvis-tools} \\
+AFLOW             & $\sim$3.5M & REST/JSON      & None           & \texttt{pip install requests} \\
+NOMAD             & Diverse    & REST/JSON      & None (read)    & \texttt{pip install requests} \\
+OQMD              & $\sim$1M   & REST/JSON      & None           & \texttt{pip install requests} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{2em}
+\noindent\rule{\linewidth}{0.4pt}
+{\small
+\textit{EuMINe DataBridge Hackathon 2026} \hfill \textit{hackathon@eumine.eu}\\
+Questions about data access? Post in \texttt{\#data-sources} on Slack or open a
+GitHub Discussion at
+\url{https://github.com/EuMINe-COST/eumine_hackaton_2026/discussions}.
+}
+
+\end{document}

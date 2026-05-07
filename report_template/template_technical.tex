@@ -1,0 +1,192 @@
+%% template_technical.tex
+%% EuMINe DataBridge Hackathon 2026 — Technical Report Template
+%%
+%% Fill in every TODO section.
+%% Compile with: pdflatex template_technical.tex  (run twice)
+
+\documentclass[10pt, a4paper]{article}
+\usepackage{eumine_hackathon}
+
+%% ── Title block ────────────────────────────────────────────────────────────
+\title{%
+  \textbf{Technical Report}\\[4pt]
+  {\large EuMINe DataBridge Hackathon \hackathonyear}
+}
+\author{
+  TODO: Team Name \\
+  \small TODO: Institution(s) \\
+  \small TODO: Contact email
+}
+\date{TODO: Date submitted}
+
+%% ───────────────────────────────────────────────────────────────────────────
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+% ── Abstract ──────────────────────────────────────────────────────────────
+\begin{abstract}
+TODO: One paragraph describing your model, the key ideas that make it
+better than the MAGPIE + RandomForest baseline, and the final validation
+MAE for both target properties.
+\end{abstract}
+
+\tableofcontents
+\vspace{1em}
+
+% ── 1. Model Architecture ─────────────────────────────────────────────────
+\section{Model Architecture}
+
+\subsection{Overview}
+TODO: Describe your model at a high level (e.g.\ graph neural network,
+equivariant model, transformer, ensemble, etc.) and explain the main
+design choices.
+
+\subsection{Input Representation}
+TODO: How are crystal structures represented as input?
+Examples:
+\begin{itemize}
+  \item Composition-based descriptors (MAGPIE, Matminer featurisers)
+  \item Graph: atoms as nodes, bonds as edges, edge features (distance,
+    periodic image offset)
+  \item Point cloud / voxel grid
+  \item Pre-trained embedding (e.g.\ GNoME, CHGNet, MACE)
+\end{itemize}
+
+\subsection{Architecture Details}
+TODO: Provide enough detail to reproduce your model.
+\begin{itemize}
+  \item Number of layers / parameters
+  \item Activation functions
+  \item Aggregation / readout function
+  \item Output head(s) — one head per property or multi-task?
+\end{itemize}
+
+If applicable, include a diagram:
+\begin{figure}[h!]
+  \centering
+  % \includegraphics[width=0.7\linewidth]{figures/architecture.png}
+  \caption{TODO: Model architecture diagram.}
+  \label{fig:architecture}
+\end{figure}
+
+% ── 2. Training Procedure ─────────────────────────────────────────────────
+\section{Training Procedure}
+
+\subsection{Data Split Used}
+TODO: Confirm which split was used (train 700 / val 150 / test 150).
+Were any additional data sources incorporated?
+
+\subsection{Loss Function}
+TODO: Describe the loss (e.g.\ MAE, MSE, Huber). If multi-task, describe
+how per-property losses are combined.
+
+$$\mathcal{L} = \lambda_1 \, \text{MAE}(E_f) + \lambda_2 \, \text{MAE}(E_g)$$
+
+where \(\lambda_1 = \text{TODO}\) and \(\lambda_2 = \text{TODO}\).
+
+\subsection{Optimiser and Hyperparameters}
+\begin{table}[h!]
+\centering
+\caption{Training hyperparameters.}
+\label{tab:hparams}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Hyperparameter & Value \\
+\midrule
+Optimiser           & TODO (e.g.\ Adam) \\
+Learning rate       & TODO \\
+Scheduler           & TODO \\
+Batch size          & TODO \\
+Epochs              & TODO \\
+Early stopping      & TODO \\
+Weight decay        & TODO \\
+Random seed         & TODO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Hardware and Runtime}
+TODO: GPU/CPU used, total training time.
+
+% ── 3. Results ────────────────────────────────────────────────────────────
+\section{Results}
+
+\begin{table}[h!]
+\centering
+\caption{Validation-set performance vs.\ baseline.}
+\label{tab:results}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Model & MAE \(E_f\) (eV/atom) & MAE \(E_g\) (eV) \\
+\midrule
+MAGPIE + RandomForest (baseline) & \(0.XXX\) & \(0.XXX\) \\
+\textbf{TODO: Your model name}   & TODO      & TODO      \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Error Analysis}
+TODO: Discuss where your model performs well and where it fails.
+Include parity plots if space allows:
+
+\begin{figure}[h!]
+  \centering
+  % \includegraphics[width=0.45\linewidth]{figures/parity_ef.png}
+  % \includegraphics[width=0.45\linewidth]{figures/parity_bg.png}
+  \caption{TODO: Parity plots for (left) \(E_f\) and (right) \(E_g\)
+    on the validation set.}
+  \label{fig:parity}
+\end{figure}
+
+\subsection{Ablation Studies (optional)}
+TODO: Report the effect of removing key components (features, layers, data
+sources) to justify your design choices.
+
+% ── 4. Reproducibility ────────────────────────────────────────────────────
+\section{Reproducibility}
+
+\subsection{Code Repository}
+TODO: Provide a link to your GitHub / GitLab repository.
+
+\subsection{Dependencies}
+TODO: Python version and key library versions (e.g.\ PyTorch, pymatgen,
+matminer, scikit-learn).
+
+\subsection{Reproducing the Results}
+TODO: Step-by-step commands to reproduce training and evaluation:
+
+\begin{lstlisting}[language=bash]
+# Example
+pip install -r requirements.txt
+python train.py --config config/best.yaml --seed 42
+python predict.py --model checkpoints/best.pt --out predictions_test.json
+\end{lstlisting}
+
+% ── 5. Discussion ─────────────────────────────────────────────────────────
+\section{Discussion}
+
+\subsection{Key Findings}
+TODO: What did you learn about the MP\,--\,JARVIS dataset split?
+Did the cross-source labels cause any issues?
+
+\subsection{Limitations}
+TODO: Known failure modes, edge cases, or assumptions that may not hold
+outside this dataset.
+
+\subsection{Future Work}
+TODO: What would you do with more time / data / compute?
+
+% ── References ────────────────────────────────────────────────────────────
+\section*{References}
+
+\begin{enumerate}
+  \item Jain et al., \textit{APL Mater.} \textbf{1}, 011002 (2013) —
+    Materials Project.
+  \item Choudhary et al., \textit{npj Comput. Mater.} \textbf{6}, 173 (2020)
+    — JARVIS-DFT.
+  \item TODO: Add model-specific references (e.g.\ CGCNN, MEGNet, SchNet,
+    DimeNet, GNoME, CHGNet, MACE, \ldots).
+\end{enumerate}
+
+\end{document}
