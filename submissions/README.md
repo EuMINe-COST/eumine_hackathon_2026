@@ -27,10 +27,9 @@
    ```
    All 150 test `material_id` values must be present. The IDs correspond to the structures in `test_input_structures.zip` (Google Drive).
 
-4. Open a **Pull Request** against the `main` branch.  
-   CI will automatically check that your file is valid JSON with the correct fields.
+4. Open a **Pull Request** against the `main` branch.
 
-5. The organizer will review and **merge** your PR.  
+5. The organizer will review your file format and **merge** your PR.  
    Scores are updated on the leaderboard within a day of merging.
 
 ## Rules
